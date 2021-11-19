@@ -92,13 +92,7 @@ public:
 		DocumentStatus status) const {
 		auto matched_documents = FindTopDocuments(raw_query,
 			[status](int document_id, DocumentStatus statuses, int raiting) {
-			bool flag{ false };
-			if (status == statuses)
-			{
-				flag = true;
-				return flag;
-			}
-			return flag;
+			return status == statuses;
 		});
 
 		return matched_documents;
