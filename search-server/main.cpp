@@ -84,18 +84,15 @@ public:
 	template <typename StringContainer>
 	explicit SearchServer(const StringContainer& stop_words)
 		: stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-		for (const auto word : stop_words_) {
-			if (!IsValidWord(word)) {
-				throw invalid_argument("Стоп-слово содержит недопустимые символы"s);
-			}
+		if (any_of(stop_words.begin(), stop_words.end(), [](string s) {
+			return !IsValidWord(s); })) {
+			throw invalid_argument("Стоп-слово содержит недопустимые символы"s);
 		}
 	}
 
 	explicit SearchServer(const string& stop_words_text)
-		: SearchServer(SplitIntoWords(stop_words_text)) {
-		if (!IsValidWord(stop_words_text)) {
-			throw invalid_argument("Стоп-слово содержит недопустимые символы"s);
-		}
+		: SearchServer(SplitIntoWords(stop_words_text))
+	{
 	}
 
 	void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
@@ -105,9 +102,7 @@ public:
 		else if ((documents_.count(document_id) > 0)) {
 			throw invalid_argument("Попытка добавить документ c id ранее добавленного документа"s);;
 		}
-		else if (!IsValidWord(document)) {
-			throw invalid_argument("Наличие недопустимых символов в добавляемом документе"s);;
-		}
+
 		const vector<string> words = SplitIntoWordsNoStop(document);
 		const double inv_word_count = 1.0 / words.size();
 		for (const string& word : words) {
@@ -119,21 +114,6 @@ public:
 
 	template <typename DocumentPredicate>
 	vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-
-		for (const string& word : SplitIntoWords(raw_query)) {
-			if (!IsValidWord(word)) {
-				throw invalid_argument(
-					"В словах поискового запроса есть недопустимые символы"s);
-			}
-			else if (word[1] == '-') {
-				throw invalid_argument(
-					"Наличие более чем одного минуса перед словами"s);
-			}
-			else if (word.size() == 1 && word[0] == '-') {
-				throw invalid_argument(
-					"Отсутствие текста после символа «минус»: в поисковом запросе"s);
-			}
-		}
 
 		const Query query = ParseQuery(raw_query);
 		auto matched_documents = FindAllDocuments(query, document_predicate);
@@ -175,22 +155,7 @@ public:
 	}
 
 	tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-
-		for (const string& word : SplitIntoWords(raw_query)) {
-			if (!IsValidWord(word)) {
-				throw invalid_argument(
-					"В словах поискового запроса есть недопустимые символы"s);
-			}
-			else if (word[1] == '-') {
-				throw invalid_argument(
-					"Наличие более чем одного минуса перед словами"s);
-			}
-			else if (word.size() == 1 && word[0] == '-') {
-				throw invalid_argument(
-					"Отсутствие текста после символа «минус»: в поисковом запросе"s);
-			}
-		}
-
+		
 		const Query query = ParseQuery(raw_query);
 		vector<string> matched_words;
 		for (const string& word : query.plus_words) {
@@ -237,6 +202,10 @@ private:
 	vector<string> SplitIntoWordsNoStop(const string& text) const {
 		vector<string> words;
 		for (const string& word : SplitIntoWords(text)) {
+			if (!IsValidWord(word)) {
+				throw invalid_argument(
+					"Наличие недопустимых символов в добавляемом документе (слово "s + word + ")"s);
+			}
 			if (!IsStopWord(word)) {
 				words.push_back(word);
 			}
@@ -263,6 +232,19 @@ private:
 
 	QueryWord ParseQueryWord(string text) const {
 		bool is_minus = false;
+
+		if (!IsValidWord(text)) {
+			throw invalid_argument(
+				"В словах поискового запроса есть недопустимые символы"s);
+		}
+		else if (text[1] == '-') {
+			throw invalid_argument(
+				"Наличие более чем одного минуса перед словом: "s + text);
+		}
+		else if (text.size() == 1 && text[0] == '-') {
+			throw invalid_argument(
+				"Отсутствие текста после символа «минус»: в поисковом запросе"s);
+		}
 		// Word shouldn't be empty
 		if (text[0] == '-') {
 			is_minus = true;
