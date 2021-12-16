@@ -84,8 +84,7 @@ public:
 	template <typename StringContainer>
 	explicit SearchServer(const StringContainer& stop_words)
 		: stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-		if (any_of(stop_words.begin(), stop_words.end(), [](string s) {
-			return !IsValidWord(s); })) {
+		if (!all_of(stop_words.begin(), stop_words.end(), IsValidWord)) {
 			throw invalid_argument("Стоп-слово содержит недопустимые символы"s);
 		}
 	}
@@ -96,6 +95,7 @@ public:
 	}
 
 	void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
+
 		if ((document_id < 0)) {
 			throw invalid_argument("Попытка добавить документ с отрицательным id"s);
 		}
@@ -155,9 +155,10 @@ public:
 	}
 
 	tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-		
+
 		const Query query = ParseQuery(raw_query);
 		vector<string> matched_words;
+
 		for (const string& word : query.plus_words) {
 			if (word_to_document_freqs_.count(word) == 0) {
 				continue;
@@ -200,6 +201,7 @@ private:
 	}
 
 	vector<string> SplitIntoWordsNoStop(const string& text) const {
+
 		vector<string> words;
 		for (const string& word : SplitIntoWords(text)) {
 			if (!IsValidWord(word)) {
@@ -214,6 +216,7 @@ private:
 	}
 
 	static int ComputeAverageRating(const vector<int>& ratings) {
+
 		if (ratings.empty()) {
 			return 0;
 		}
@@ -233,22 +236,18 @@ private:
 	QueryWord ParseQueryWord(string text) const {
 		bool is_minus = false;
 
-		if (!IsValidWord(text)) {
-			throw invalid_argument(
-				"В словах поискового запроса есть недопустимые символы"s);
-		}
-		else if (text[1] == '-') {
-			throw invalid_argument(
-				"Наличие более чем одного минуса перед словом: "s + text);
-		}
-		else if (text.size() == 1 && text[0] == '-') {
-			throw invalid_argument(
-				"Отсутствие текста после символа «минус»: в поисковом запросе"s);
+		if (text.empty()) {
+			throw invalid_argument("Пустое слово"s);
 		}
 		// Word shouldn't be empty
 		if (text[0] == '-') {
 			is_minus = true;
 			text = text.substr(1);
+		}
+			   		
+		if (text.empty() || text[0] == '-' || !IsValidWord(text)) {
+			throw invalid_argument(
+				"Слова поискового запроса недопустимы"s);
 		}
 		return { text, is_minus, IsStopWord(text) };
 	}
@@ -280,6 +279,7 @@ private:
 
 	template <typename DocumentPredicate>
 	vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const {
+
 		map<int, double> document_to_relevance;
 		for (const string& word : query.plus_words) {
 			if (word_to_document_freqs_.count(word) == 0) {
