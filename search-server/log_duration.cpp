@@ -1,6 +1,6 @@
 #include "log_duration.h"
 
-LogDuration::LogDuration(const std::string& s, std::ostream& os)
+LogDuration::LogDuration(const std::string& s, std::ostream& os = std::cerr)
 	: name_operation_(s), out_(os) {}
 
 LogDuration::~LogDuration() {
