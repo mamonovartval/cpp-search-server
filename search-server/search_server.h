@@ -231,17 +231,6 @@ private:
 		const auto query = ParseQuery(raw_query);
 		
 		std::for_each(policy,
-			query.minus_words.begin(), query.minus_words.end(),
-			[this, &document_to_relevance](std::string_view word)
-		{
-			if (word_to_document_freqs_.count(word)) {
-				for (const auto[document_id, _] : word_to_document_freqs_.at(word)) {
-					document_to_relevance.Erase(document_id);
-				}
-			}
-		});
-
-		std::for_each(policy,
 			query.plus_words.begin(), query.plus_words.end(),
 			[this, &document_predicate, &document_to_relevance](std::string_view word)
 		{
@@ -256,6 +245,17 @@ private:
 			}
 		}
 		);
+		
+		std::for_each(policy,
+			query.minus_words.begin(), query.minus_words.end(),
+			[this, &document_to_relevance](std::string_view word)
+		{
+			if (word_to_document_freqs_.count(word)) {
+				for (const auto[document_id, _] : word_to_document_freqs_.at(word)) {
+					document_to_relevance.Erase(document_id);
+				}
+			}
+		});
 
 		std::map<int, double> document_to_relevance_reduced = document_to_relevance.BuildOrdinaryMap();
 		std::vector<Document> matched_documents;
